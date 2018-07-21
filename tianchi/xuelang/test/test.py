@@ -2,4 +2,10 @@
 # @Author  : cap
 # @FileName: test.py
 # @Software: PyCharm Community Edition
-# @introduction: 
+# @introduction:
+
+import pickle
+with open('./label_map.pickle', 'rb') as f:
+    dic = pickle.load(f)
+
+print(dic)
