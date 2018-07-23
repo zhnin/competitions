@@ -70,18 +70,67 @@ with tf.Session() as sess:
     # result = tf.unstack(result, axis=0)
 
     # 随机区域框，包含标注框标注区域的0.4
-    begin, size, bbox_for_draw = tf.image.sample_distorted_bounding_box(tf.shape(img_data),
-                                                                        bounding_boxes=boxes,
-                                                                        min_object_covered=0.4)
-    distorted_image = tf.slice(img_data, begin, size)
+    for _ in range(10):
+        begin, size, bbox_for_draw = tf.image.sample_distorted_bounding_box(tf.shape(img_data),
+                                                                            bounding_boxes=boxes,
+                                                                            min_object_covered=1,
+                                                                            area_range=[0.1,0.2])
+        distorted_image = tf.slice(img_data, begin, size)
+        # print(distorted_image.eval().shape)
+
+    # 按照标注框截取图片
+    # offset_height = int(xml['ymin'])
+    # offset_width = int(xml['xmin'])
+    # target_height = int(xml['ymax']) - offset_height
+    # target_width = int(xml['xmax']) - offset_width
+    # crop_img = tf.image.crop_to_bounding_box(img_data, offset_height, offset_width, target_height, target_width)
+    # np_img = sess.run(crop_img)
+    #
+    # mp.subplot(151)
+    # mp.imshow(np_img.astype('float32'))
+    #
+    # batch_crop_img = tf.expand_dims(crop_img, 0)
+
+# 测试使用何种resize方式，选用resize_area（250，250）
+    #
+    #
+    # img_area = tf.image.resize_area(batch_crop_img, (250, 250))
+    # img_area = tf.unstack(img_area, axis=0)[0]
+    # np_area = sess.run(img_area)
+    # mp.subplot(152)
+    # mp.imshow(np_area)
+    #
+    # img_area = tf.image.resize_bicubic(batch_crop_img, (250, 250))
+    # img_area = tf.unstack(img_area, axis=0)[0]
+    # np_area = sess.run(img_area)
+    # mp.subplot(153)
+    # mp.imshow(np_area)
+    #
+    # img_area = tf.image.resize_bilinear(batch_crop_img, (250, 250))
+    # img_area = tf.unstack(img_area, axis=0)[0]
+    # np_area = sess.run(img_area)
+    # mp.subplot(154)
+    # mp.imshow(np_area)
+    #
+    # img_area = tf.image.resize_nearest_neighbor(batch_crop_img, (250, 250))
+    # img_area = tf.unstack(img_area, axis=0)[0]
+    # np_area = sess.run(img_area)
+    # mp.subplot(155)
+    # mp.imshow(np_area)
+    # mp.show()
+
+
     # show
-    mp.subplot(121)
-    mp.imshow(distorted_image.eval())
+    # mp.subplot(121)
+    # mp.imshow(distorted_image.eval())
+    #
+    # mp.subplot(122)
+    # img_data = tf.expand_dims(img_data, 0)
+    # result = tf.image.draw_bounding_boxes(img_data, bbox_for_draw)
+    # result = tf.unstack(result, axis=0)
+    # mp.imshow(result[0].eval())
+    #
+    # mp.show()
 
-    mp.subplot(122)
-    img_data = tf.expand_dims(img_data, 0)
-    result = tf.image.draw_bounding_boxes(img_data, bbox_for_draw)
-    result = tf.unstack(result, axis=0)
-    mp.imshow(result[0].eval())
 
-    mp.show()
+##

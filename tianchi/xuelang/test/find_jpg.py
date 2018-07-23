@@ -63,7 +63,7 @@ def get_file_names(path):
 
 if __name__ == '__main__':
     test_list_files, train_dict_file, xmls = get_file_names('D:\\softfiles\\workspace\\games\\xuelang')
-    print(train_dict_file)
+    print(test_list_files)
     # print(test_list_files, train_dict_file, xmls)
     # 对每个label的数据样本数量进行排序，
 
