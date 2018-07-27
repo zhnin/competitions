@@ -37,22 +37,49 @@ def _parse_train_function(record):
     image_raw = tf.image.random_flip_left_right(image_raw)
 
     # 亮度，对比度随机调整
-    image_raw = tf.image.random_brightness(image_raw, max_delta=63)
-    image_raw = tf.image.random_contrast(image_raw, lower=0.2, upper=1.8)
+    # image_raw = tf.image.random_brightness(image_raw, max_delta=63)
+    # image_raw = tf.image.random_contrast(image_raw, lower=0.2, upper=1.8)
 
     # 数值均化处理
     image_raw = tf.image.per_image_standardization(image_raw)
     # 输出值调整
-    image_raw = tf.clip_by_value(image_raw, 0.0, 1.0)
-    image_raw.set_shape([IMAGE_SIZE, IMAGE_SIZE, 3])
+    # image_raw = tf.clip_by_value(image_raw, 0.0, 1.0)
+    image_raw.set_shape([240, 320, 3])
     return image_raw, label
 
 
-def distorted_inputs(data_dir, batch_size):
+def _parse_eval_function(record):
+    parse_feature = tf.parse_single_example(record, features={
+        'height': tf.FixedLenFeature([], tf.int64),
+        'width': tf.FixedLenFeature([], tf.int64),
+        'label': tf.FixedLenFeature([], tf.int64),
+        'image_raw': tf.FixedLenFeature([], tf.string)
+    })
+
+    label = parse_feature['label']
+    image_raw = parse_feature['image_raw']
+
+    # 解析成图片，并将格式转成tf.float32
+    image_raw = tf.image.decode_jpeg(image_raw, channels=3)
+    image_raw = tf.image.convert_image_dtype(image_raw, tf.float32)
+
+    image_raw.set_shape([240, 320, 3])
+    return image_raw, label
+
+
+def distorted_inputs(data_dir, batch_size, epoch):
     filenames = tf.train.match_filenames_once(data_dir)
     dataset = tf.data.TFRecordDataset(filenames)
-    dataset = dataset.map(_parse_train_function).batch(batch_size).repeat()
+    dataset = dataset.map(_parse_train_function).batch(batch_size).repeat(epoch)
 
     #  创建迭代器
     iterator = dataset.make_initializable_iterator()
+    return iterator
+
+
+def inputs(data_dir, batch_size):
+    with tf.name_scope('input'):
+        dataset = tf.data.TFRecordDataset(data_dir)
+        dataset = dataset.map(_parse_eval_function).batch(batch_size)
+        iterator = dataset.make_initializable_iterator()
     return iterator

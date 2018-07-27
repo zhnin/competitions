@@ -13,9 +13,10 @@ import xl_input
 
 FLAGS = tf.app.flags.FLAGS
 
-tf.app.flags.DEFINE_string('data_dir', 'D:\\softfiles\\workspace\\games\\xue_lang\\prep_data\\60_60', 'data dir')
-tf.app.flags.DEFINE_integer('batch_size', 50, 'batch size')
+tf.app.flags.DEFINE_string('data_dir', 'D:\\softfiles\\workspace\\games\\xue_lang\\prep_data\\240_320', 'data dir')
+tf.app.flags.DEFINE_integer('batch_size', 25, 'batch size')
 tf.app.flags.DEFINE_boolean('use_fp16', False, 'uding fp16')
+tf.app.flags.DEFINE_integer('epoch', 100, 'epoch')
 
 IMAGE_SIZE = xl_input.IMAGE_SIZE
 NUM_CLASSES = xl_input.NUM_CLASSES
@@ -32,9 +33,21 @@ def distorted_inputs():
     if not FLAGS.data_dir:
         raise ValueError('data dir can not found.')
     data_dir = os.path.join(FLAGS.data_dir, 'train_*.record')
-    iterator = xl_input.distorted_inputs(data_dir, FLAGS.batch_size)
+    iterator = xl_input.distorted_inputs(data_dir, FLAGS.batch_size, FLAGS.epoch)
     images, labels = iterator.get_next()
     #
+    if FLAGS.use_fp16:
+        images = tf.image.convert_image_dtype(images, tf.float16)
+        labels = tf.cast(labels, tf.float16)
+    return images, labels, iterator
+
+
+def inputs():
+    if not FLAGS.data_dir:
+        raise ValueError('data dir is not exist.')
+    data_dir = os.path.join(FLAGS.data_dir, 'test.record')
+    iterator = xl_input.inputs(data_dir, FLAGS.batch_size)
+    images, labels = iterator.get_next()
     if FLAGS.use_fp16:
         images = tf.image.convert_image_dtype(images, tf.float16)
         labels = tf.cast(labels, tf.float16)
@@ -63,7 +76,7 @@ def _variable_with_weight_decay(name, shape, stddev, wd):
     return var
 
 
-def inference(images):
+def inference(images, train):
     """
     conv1: 60*60*3      60*60*64
     pool1: 60*60*64     30*30*64
@@ -82,9 +95,9 @@ def inference(images):
     local5
     """
     with tf.variable_scope('conv1') as scope:
-        kernel = _variable_with_weight_decay('weights', shape=[3, 3, 3, 64], stddev=0.01, wd=None)
+        kernel = _variable_with_weight_decay('weights', shape=[3, 3, 3, 16], stddev=0.01, wd=None)
         conv = tf.nn.conv2d(images, kernel, [1, 1, 1, 1], padding='SAME')
-        biases = _variable_on_cpu('biases', [64], tf.constant_initializer(0.0))
+        biases = _variable_on_cpu('biases', [16], tf.constant_initializer(0.0))
         pre_activation = tf.nn.bias_add(conv, biases)
         conv1 = tf.nn.relu(pre_activation, name=scope.name)
         _activation_summary(conv1)
@@ -93,9 +106,9 @@ def inference(images):
     norm1 = tf.nn.lrn(pool1, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75, name='norm1')
 
     with tf.variable_scope('conv2') as scope:
-        kernel = _variable_with_weight_decay('weights', shape=[3, 3, 64, 256], stddev=0.01, wd=None)
+        kernel = _variable_with_weight_decay('weights', shape=[3, 3, 16, 32], stddev=0.01, wd=None)
         conv = tf.nn.conv2d(norm1, kernel, strides=[1, 1, 1, 1], padding='SAME')
-        biases = _variable_on_cpu('biases', [256], tf.constant_initializer(0.0))
+        biases = _variable_on_cpu('biases', [32], tf.constant_initializer(0.0))
         pre_activation = tf.nn.bias_add(conv, biases)
         conv2 = tf.nn.relu(pre_activation, name=scope.name)
         _activation_summary(conv2)
@@ -104,9 +117,9 @@ def inference(images):
     pool2 = tf.nn.max_pool(norm2, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='SAME', name='pool2')
 
     with tf.variable_scope('conv3') as scope:
-        kernel = _variable_with_weight_decay('weights', shape=[3, 3, 256, 512], stddev=0.01, wd=None)
+        kernel = _variable_with_weight_decay('weights', shape=[3, 3, 32, 64], stddev=0.01, wd=None)
         conv = tf.nn.conv2d(pool2, kernel, strides=[1, 1, 1, 1], padding='SAME')
-        biases = _variable_on_cpu('biases', [512], tf.constant_initializer(0.0))
+        biases = _variable_on_cpu('biases', [64], tf.constant_initializer(0.0))
         pre_activation = tf.nn.bias_add(conv, biases)
         conv3 = tf.nn.relu(pre_activation, name=scope.name)
         _activation_summary(conv3)
@@ -119,18 +132,28 @@ def inference(images):
         shape_size = shape[1] * shape[2] * shape[3]
         reshape = tf.reshape(pool3, [FLAGS.batch_size, shape_size])
 
-        weights = _variable_with_weight_decay('weights', shape=[shape_size, 1024], stddev=0.04, wd=0.04)
-        biases = _variable_on_cpu('biases', [1024], tf.constant_initializer(0.1))
+        weights = _variable_with_weight_decay('weights', shape=[shape_size, 256], stddev=0.04, wd=0.04)
+        biases = _variable_on_cpu('biases', [256], tf.constant_initializer(0.01))
         local4 = tf.nn.relu(tf.matmul(reshape, weights) + biases, name=scope.name)
+        if train:
+            local4 = tf.nn.dropout(local4, 0.5)
         _activation_summary(local4)
 
     with tf.variable_scope('local5') as scope:
-        weights = _variable_with_weight_decay('weights', shape=[1024, NUM_CLASSES], stddev=0.04, wd=0.004)
-        biases = _variable_on_cpu('biases', [NUM_CLASSES], tf.constant_initializer(0.1))
-        local5 = tf.matmul(local4, weights) + biases
+        weights = _variable_with_weight_decay('weights', shape=[256, 64], stddev=0.04, wd=0.04)
+        biases = _variable_on_cpu('biases', [64], tf.constant_initializer(0.01))
+        local5 = tf.nn.relu(tf.matmul(local4, weights) + biases, name=scope.name)
+        if train:
+            local5 = tf.nn.dropout(local5, 0.5)
         _activation_summary(local5)
 
-    return local5
+    with tf.variable_scope('local6') as scope:
+        weights = _variable_with_weight_decay('weights', shape=[64, NUM_CLASSES], stddev=0.04, wd=0.04)
+        biases = _variable_on_cpu('biases', [NUM_CLASSES], tf.constant_initializer(0.01))
+        local6 = tf.matmul(local5, weights) + biases
+        _activation_summary(local6)
+
+    return local6
 
 
 def loss(logits, labels):
@@ -145,7 +168,7 @@ def train(losses, global_step):
     # 学习率优化
     lr = tf.train.exponential_decay(INITIAL_LEARNING_RATE,
                                     global_step,
-                                    500,
+                                    50,
                                     LEARNING_RATE_DECAY_FACTOR)
 
     tf.summary.scalar('learing_rate', lr)

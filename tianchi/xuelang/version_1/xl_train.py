@@ -22,7 +22,7 @@ tf.app.flags.DEFINE_boolean('log_device_placement', False, """Whether to log dev
 # 滑动平均下降， 学习率， 学习率下降
 MOVING_AVERAGE_DECAY = 0.99
 LEARNING_RATE_DECAY_FACTOR = 0.99
-INITIAL_LEARNING_RATE = 0.1
+INITIAL_LEARNING_RATE = 0.8
 
 
 def train():
@@ -31,9 +31,8 @@ def train():
         # 获取训练数据迭代器
         with tf.device('/cpu:0'):
             images, labels, iterator = xl_model.distorted_inputs()
-
-        logits = xl_model.inference(images)
-
+        logits = xl_model.inference(images, True)
+        softmax_logits = tf.nn.softmax(logits)
         loss = xl_model.loss(logits, labels)
 
         train_op = xl_model.train(loss, global_step)
@@ -71,31 +70,22 @@ def train():
                    _LoggerHook()],
             config=tf.ConfigProto(log_device_placement=FLAGS.log_device_placement)
         ) as sess:
-            # sess.run([tf.global_variables_initializer(), tf.local_variables_initializer()])
-            sess.run(iterator.initializer)
-            while not sess.should_stop():
+            sess.run([iterator.initializer])
+            # while not sess.should_stop():
+            #     sess.run(train_op)
+
+            for i in range(200):
                 sess.run(train_op)
-
-
-        # with tf.Session() as sess:
-        #     tf.global_variables_initializer().run()
-        #         # paths = tf.train.match_filenames_once('D:\\softfiles\\workspace\\games\\xue_lang\\prep_data\\60_60\\train_*.record')
-        #     # train_paths = [os.path.join(FLAGS.data_dir, 'train_%d_4.record') % i for i in range(1, 5)]
-        #     # print(train_paths)
-        #     sess.run(iterator.initializer)
-        #     # sess.run(test_iterator.initializer, feed_dict={testfile: [test_path]})
-        #     # print(test_images.get_shape())
-        #
-        #     # a = sess.run(images)[0,...]
-        #     # import matplotlib.pyplot as mp
-        #     # mp.imshow(a)
-        #     # mp.show()
-        #
-        #     for i in range(1000):
-        #         _, loss_value, step = sess.run([train_op, loss, global_step])
-        #         if i % 100 == 0:
-        #             print('After %d steps：losses: %g'% (step, loss_value))
-
+            _, logit, label = sess.run([train_op, softmax_logits, labels])
+            for lo, la in zip(logit, label):
+                print(lo, la)
+            # import matplotlib.pyplot as mp
+            #
+            # _, im, l, si = sess.run([train_op,images, labels, si_im])
+            # print(si)
+            # mp.imshow(si[0,...])
+            # mp.title(l[0])
+            # mp.show()
 def main(_):
     if tf.gfile.Exists(FLAGS.train_dir):
         tf.gfile.DeleteRecursively(FLAGS.train_dir)
