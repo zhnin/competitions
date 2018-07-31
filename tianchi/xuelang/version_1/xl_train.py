@@ -19,19 +19,13 @@ tf.app.flags.DEFINE_integer('log_frequency', 10, """log result to console.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False, """Whether to log device placement.""")
 
 
-# 滑动平均下降， 学习率， 学习率下降
-MOVING_AVERAGE_DECAY = 0.99
-LEARNING_RATE_DECAY_FACTOR = 0.99
-INITIAL_LEARNING_RATE = 0.8
-
-
 def train():
     with tf.Graph().as_default():
         global_step = tf.train.get_or_create_global_step()
         # 获取训练数据迭代器
         with tf.device('/cpu:0'):
             images, labels, iterator = xl_model.distorted_inputs()
-        logits = xl_model.inference(images, True)
+        logits = xl_model.inference(images, False)
         softmax_logits = tf.nn.softmax(logits)
         loss = xl_model.loss(logits, labels)
 
@@ -74,11 +68,14 @@ def train():
             # while not sess.should_stop():
             #     sess.run(train_op)
 
-            for i in range(200):
-                sess.run(train_op)
-            _, logit, label = sess.run([train_op, softmax_logits, labels])
-            for lo, la in zip(logit, label):
-                print(lo, la)
+            # for i in range(5):
+            #     # _, los = sess.run([train_op, loss])
+            #     _, logit, label = sess.run([train_op, softmax_logits, labels])
+            #     # print(logits, label)
+            #     for lo, la in zip(logit, label):
+            #         print(lo, la)
+
+
             # import matplotlib.pyplot as mp
             #
             # _, im, l, si = sess.run([train_op,images, labels, si_im])
@@ -86,6 +83,7 @@ def train():
             # mp.imshow(si[0,...])
             # mp.title(l[0])
             # mp.show()
+
 def main(_):
     if tf.gfile.Exists(FLAGS.train_dir):
         tf.gfile.DeleteRecursively(FLAGS.train_dir)

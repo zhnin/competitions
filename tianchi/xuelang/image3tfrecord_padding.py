@@ -67,23 +67,23 @@ def to_record(x, y, record_name):
         sess = tf.Session()
         for filepath, label in zip(x, y):
             image_raw = tf.gfile.GFile(filepath, 'rb').read()
-            image_raw = tf.image.decode_jpeg(image_raw, channels=3, ratio=ratio, dct_method='INTEGER_FAST')
+            image_raw = tf.image.decode_jpeg(image_raw, channels=3)
             image_raw = tf.image.convert_image_dtype(image_raw, tf.float32)
 
             # 获取标注框
             if filepath.split(os.sep)[-2] != '正常' and label is not None:
                 xml = getbox(filepath)
-                offset_height = int(int(xml['ymin']) / ratio)
-                offset_width = int(int(xml['xmin']) / ratio)
-                target_height = int(int(xml['ymax']) / ratio) - offset_height
-                target_width = int(int(xml['xmax']) / ratio) - offset_width
+                offset_height = int(xml['ymin'])
+                offset_width = int(xml['xmin'])
+                target_height = int(xml['ymax']) - offset_height
+                target_width = int(xml['xmax']) - offset_width
 
                 image_raw = tf.image.crop_to_bounding_box(image_raw,
                                                            offset_height, offset_width,
                                                            target_height,
                                                            target_width)
 
-            image_raw = tf.image.resize_images(image_raw, [240, 320], method=3)
+            image_raw = tf.image.resize_image_with_crop_or_pad(image_raw, 240, 320)
             image_raw = tf.image.convert_image_dtype(image_raw, tf.uint8)
 
             image_raw = tf.image.encode_jpeg(image_raw, format='rgb', quality=98)
@@ -138,14 +138,9 @@ def main():
 
 
     # to_record(train_x[:400], train_y[:400], 'train_1_4.record')
-    # print('success write 1')
     # to_record(train_x[400:800], train_y[400:800], 'train_2_4.record')
-    # print('success write 2')
     # to_record(train_x[800:1200], train_y[800:1200], 'train_3_4.record')
-    # print('success write 3')
     # to_record(train_x[1200:1600], train_y[1200:1600], 'train_4_4.record')
-    # print('success write 4')
-    #
     to_record(test_x, test_y, 'test.record')
     print(len(train_x))
     print(len(train_y))

@@ -13,8 +13,8 @@ import xl_input
 
 FLAGS = tf.app.flags.FLAGS
 
-tf.app.flags.DEFINE_string('data_dir', 'D:\\softfiles\\workspace\\games\\xue_lang\\prep_data\\240_320', 'data dir')
-tf.app.flags.DEFINE_integer('batch_size', 25, 'batch size')
+tf.app.flags.DEFINE_string('data_dir', 'D:\\softfiles\\workspace\\games\\xue_lang\\prep_data\\240_320_pad', 'data dir')
+tf.app.flags.DEFINE_integer('batch_size', 2, 'batch size')
 tf.app.flags.DEFINE_boolean('use_fp16', False, 'uding fp16')
 tf.app.flags.DEFINE_integer('epoch', 100, 'epoch')
 
@@ -24,9 +24,9 @@ TRAIN_NUMBER = xl_input.TRAIN_NUMBER
 TEST_NUMBER = xl_input.TEST_NUMBER
 
 # 滑动平均下降， 学习率， 学习率下降
-MOVING_AVERAGE_DECAY = 0.99
-LEARNING_RATE_DECAY_FACTOR = 0.99
-INITIAL_LEARNING_RATE = 0.1
+MOVING_AVERAGE_DECAY = 0.9
+LEARNING_RATE_DECAY_FACTOR = 0.9
+INITIAL_LEARNING_RATE = 0.9
 
 
 def distorted_inputs():
@@ -95,7 +95,7 @@ def inference(images, train):
     local5
     """
     with tf.variable_scope('conv1') as scope:
-        kernel = _variable_with_weight_decay('weights', shape=[3, 3, 3, 16], stddev=0.01, wd=None)
+        kernel = _variable_with_weight_decay('weights', shape=[5, 5, 3, 16], stddev=0.01, wd=None)
         conv = tf.nn.conv2d(images, kernel, [1, 1, 1, 1], padding='SAME')
         biases = _variable_on_cpu('biases', [16], tf.constant_initializer(0.0))
         pre_activation = tf.nn.bias_add(conv, biases)
@@ -103,21 +103,21 @@ def inference(images, train):
         _activation_summary(conv1)
 
     pool1 = tf.nn.max_pool(conv1, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='SAME', name='pool1')
-    norm1 = tf.nn.lrn(pool1, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75, name='norm1')
+    # norm1 = tf.nn.lrn(pool1, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75, name='norm1')
 
     with tf.variable_scope('conv2') as scope:
-        kernel = _variable_with_weight_decay('weights', shape=[3, 3, 16, 32], stddev=0.01, wd=None)
-        conv = tf.nn.conv2d(norm1, kernel, strides=[1, 1, 1, 1], padding='SAME')
+        kernel = _variable_with_weight_decay('weights', shape=[5, 5, 16, 32], stddev=0.01, wd=None)
+        conv = tf.nn.conv2d(pool1, kernel, strides=[1, 1, 1, 1], padding='SAME')
         biases = _variable_on_cpu('biases', [32], tf.constant_initializer(0.0))
         pre_activation = tf.nn.bias_add(conv, biases)
         conv2 = tf.nn.relu(pre_activation, name=scope.name)
         _activation_summary(conv2)
 
-    norm2 = tf.nn.lrn(conv2, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75, name='norm2')
-    pool2 = tf.nn.max_pool(norm2, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='SAME', name='pool2')
+    # norm2 = tf.nn.lrn(conv2, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75, name='norm2')
+    pool2 = tf.nn.max_pool(conv2, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='SAME', name='pool2')
 
     with tf.variable_scope('conv3') as scope:
-        kernel = _variable_with_weight_decay('weights', shape=[3, 3, 32, 64], stddev=0.01, wd=None)
+        kernel = _variable_with_weight_decay('weights', shape=[5, 5, 32, 64], stddev=0.01, wd=None)
         conv = tf.nn.conv2d(pool2, kernel, strides=[1, 1, 1, 1], padding='SAME')
         biases = _variable_on_cpu('biases', [64], tf.constant_initializer(0.0))
         pre_activation = tf.nn.bias_add(conv, biases)
@@ -132,7 +132,7 @@ def inference(images, train):
         shape_size = shape[1] * shape[2] * shape[3]
         reshape = tf.reshape(pool3, [FLAGS.batch_size, shape_size])
 
-        weights = _variable_with_weight_decay('weights', shape=[shape_size, 256], stddev=0.04, wd=0.04)
+        weights = _variable_with_weight_decay('weights', shape=[shape_size, 256], stddev=0.04, wd=None)
         biases = _variable_on_cpu('biases', [256], tf.constant_initializer(0.01))
         local4 = tf.nn.relu(tf.matmul(reshape, weights) + biases, name=scope.name)
         if train:
@@ -140,7 +140,7 @@ def inference(images, train):
         _activation_summary(local4)
 
     with tf.variable_scope('local5') as scope:
-        weights = _variable_with_weight_decay('weights', shape=[256, 64], stddev=0.04, wd=0.04)
+        weights = _variable_with_weight_decay('weights', shape=[256, 64], stddev=0.04, wd=None)
         biases = _variable_on_cpu('biases', [64], tf.constant_initializer(0.01))
         local5 = tf.nn.relu(tf.matmul(local4, weights) + biases, name=scope.name)
         if train:
@@ -148,7 +148,7 @@ def inference(images, train):
         _activation_summary(local5)
 
     with tf.variable_scope('local6') as scope:
-        weights = _variable_with_weight_decay('weights', shape=[64, NUM_CLASSES], stddev=0.04, wd=0.04)
+        weights = _variable_with_weight_decay('weights', shape=[64, NUM_CLASSES], stddev=0.04, wd=None)
         biases = _variable_on_cpu('biases', [NUM_CLASSES], tf.constant_initializer(0.01))
         local6 = tf.matmul(local5, weights) + biases
         _activation_summary(local6)
@@ -157,6 +157,7 @@ def inference(images, train):
 
 
 def loss(logits, labels):
+    labels = tf.reshape(labels, [FLAGS.batch_size,])
     cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels, logits=logits,
                                                                    name='cross_entropy_per_example')
     cross_entropy_mean = tf.reduce_mean(cross_entropy, name='cross_entropy')

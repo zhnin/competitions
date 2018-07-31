@@ -17,16 +17,6 @@ path= 'D:\\softfiles\\workspace\\games\\xuelang\\xuelang_round1_train_part1_2018
 ##
 import tensorflow as tf
 
-
-
-# with open('test.jpg', 'wb') as f:
-#     f.write(file)
-#     img_raw = tf.image.convert_image_dtype(img_raw, tf.uint8)
-#     img_raw = tf.image.encode_jpeg(img_raw, format='rgb', quality=50)
-#     with tf.Session() as sess:
-#         f.write(img_raw.eval())
-
-
 def _int64_feature(value):
     return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
@@ -98,6 +88,68 @@ def de_record():
         mp.imshow(image)
         mp.show()
 
+def test1():
+    import os
 
+    writer = tf.python_io.TFRecordWriter('oneimage.record')
+    image_raw = tf.gfile.GFile(path, 'rb').read()
+    image_raw = tf.image.decode_jpeg(image_raw, channels=3, ratio=8, dct_method='INTEGER_FAST')
+    # image_raw = tf.image.convert_image_dtype(image_raw, tf.float32)
+    en_image_raw = tf.image.encode_jpeg(image_raw)
+    deimage = tf.image.decode_jpeg(en_image_raw)
+    deimage = tf.image.convert_image_dtype(deimage, tf.float32)
+    with tf.Session() as sess:
+        print(sess.run(image_raw))
+        print(sess.run(deimage))
+    # 获取标注框
+    # if path.split(os.sep)[-2] != '正常':
+    #     xml = getbox(filepath)
+    #     offset_height = int(int(xml['ymin']) / ratio)
+    #     offset_width = int(int(xml['xmin']) / ratio)
+    #     target_height = int(int(xml['ymax']) / ratio) - offset_height
+    #     target_width = int(int(xml['xmax']) / ratio) - offset_width
+    #
+    #     image_raw = tf.cast(image_raw, tf.float32)
+    #     image_raw = tf.image.crop_to_bounding_box(image_raw,
+    #                                               offset_height, offset_width,
+    #                                               target_height,
+    #                                               target_width)
+    #     image_raw = tf.image.resize_images(image_raw, [height, width], method=random.randint(0, 3))
+    #     image_raw = tf.cast(image_raw, tf.uint8)
+
+    # image_raw = tf.image.encode_jpeg(image_raw, format='rgb', quality=50)
+    # image_raw = sess.run(image_raw)
+    # if label in [0, 1]:
+    #     sample = tf.train.Example(features=tf.train.Features(feature={
+    #         'height': _int64_feature(height),
+    #         'width': _int64_feature(width),
+    #         'label': _int64_feature(label),
+    #         'image_raw': _bytes_feature(image_raw)
+    #     }))
+    # else:
+    #     sample = tf.train.Example(features=tf.train.Features(feature={
+    #         'height': _int64_feature(height),
+    #         'width': _int64_feature(width),
+    #         'image_raw': _bytes_feature(image_raw)
+    #     }))
+    # writer.write(sample.SerializeToString())
+
+def test2():
+    image_raw = tf.gfile.GFile(path, 'rb').read()
+    image_raw = tf.image.decode_jpeg(image_raw, 3, 8)
+    image_raw = tf.image.convert_image_dtype(image_raw, tf.float32)
+    image_raw = tf.image.resize_images(image_raw, [60, 60])
+    image_raw = tf.image.convert_image_dtype(image_raw, tf.uint8)
+    import matplotlib.pyplot as mp
+    with tf.Session() as sess:
+        image_raw = sess.run(image_raw)
+        mp.imshow(image_raw)
+        mp.show()
+
+def test():
+    import tensorflow as tf
+    files = tf.train.match_filenames_once('train*.record')
+    with tf.Session() as sess:
+        print(files.eval())
 if __name__ == '__main__':
-    de_record()
+    test()

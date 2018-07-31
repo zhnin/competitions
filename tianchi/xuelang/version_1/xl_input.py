@@ -34,14 +34,14 @@ def _parse_train_function(record):
     image_raw = tf.image.convert_image_dtype(image_raw, tf.float32)
 
     # 左右转换
-    image_raw = tf.image.random_flip_left_right(image_raw)
+    # image_raw = tf.image.random_flip_left_right(image_raw)
 
     # 亮度，对比度随机调整
     # image_raw = tf.image.random_brightness(image_raw, max_delta=63)
     # image_raw = tf.image.random_contrast(image_raw, lower=0.2, upper=1.8)
 
     # 数值均化处理
-    image_raw = tf.image.per_image_standardization(image_raw)
+    # image_raw = tf.image.per_image_standardization(image_raw)
     # 输出值调整
     # image_raw = tf.clip_by_value(image_raw, 0.0, 1.0)
     image_raw.set_shape([240, 320, 3])
